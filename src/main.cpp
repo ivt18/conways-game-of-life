@@ -1,8 +1,8 @@
 #include <SDL2/SDL.h>
 
 // number of cells
-#define CELLS_X 40
-#define CELLS_Y 30
+#define CELLS_X 5
+#define CELLS_Y 5
 #define CELL_SIZE 20
 
 // arrays for the cells
@@ -21,6 +21,31 @@ struct Color {
 };
 
 Color* gridColor = new Color(200, 200, 200);
+
+void compute_buffer() {
+    memset(buf, 0, sizeof(buf));
+
+    for (int x = 0; x < CELLS_X; ++x) {
+        for (int y = 0; y < CELLS_Y; ++y) {
+            int cnt = 0;
+            cnt += cur[(x - 1 + CELLS_X) % CELLS_X][(y - 1 + CELLS_Y) % CELLS_Y];
+            cnt += cur[(x - 1 + CELLS_X) % CELLS_X][y                          ];
+            cnt += cur[(x - 1 + CELLS_X) % CELLS_X][(y + 1) % CELLS_Y          ];
+            cnt += cur[x                          ][(y - 1 + CELLS_Y) % CELLS_Y];
+            cnt += cur[x                          ][(y + 1) % CELLS_Y          ];
+            cnt += cur[(x + 1) % CELLS_X          ][(y - 1 + CELLS_Y) % CELLS_Y];
+            cnt += cur[(x + 1) % CELLS_X          ][y                          ];
+            cnt += cur[(x + 1) % CELLS_X          ][(y + 1) % CELLS_Y          ];
+
+            if (cnt == 3) // birth
+                buf[x][y] = 1;
+            if (cur[x][y] && cnt == 2) // overcrowded / lonely
+                buf[x][y] = 1;
+        }
+    }
+
+    memcpy(&cur[0][0], &buf[0][0], CELLS_X * CELLS_Y * sizeof(buf[0][0]));
+}
 
 void update(SDL_Renderer *renderer, SDL_Texture *buf) {
     SDL_SetRenderTarget(renderer, NULL);
@@ -84,11 +109,16 @@ int main() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    render(renderer, buf);
-    update(renderer, buf);
+    cur[1][2] = 1;
+    cur[2][2] = 1;
+    cur[3][2] = 1;
 
     bool quit = false;
+    Uint64 start, end;
     while (!quit) {
+        start = SDL_GetPerformanceCounter();
+
+        // event loop
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -109,6 +139,18 @@ int main() {
                 default: break;
             }
         }
+
+        // rendering loop
+        render(renderer, buf);
+        update(renderer, buf);
+        compute_buffer();
+
+        end = SDL_GetPerformanceCounter();
+        float elapsedMS = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+
+        // cap to 4 fps
+        // TODO: find a better way of controlling the speed
+        SDL_Delay(floor(250.0f - elapsedMS));
     }
 
     SDL_DestroyWindow(win);
