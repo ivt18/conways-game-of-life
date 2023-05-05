@@ -211,6 +211,7 @@ int main() {
 
                         case K_PAUSE:
                             rendering = !rendering;
+                            printf(rendering ? "UNPAUSE\n" : "PAUSE\n");
                             break;
 
                         case K_SAVE:
