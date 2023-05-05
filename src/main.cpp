@@ -28,7 +28,9 @@ struct Color {
     }
 };
 
-Color* gridColor = new Color(200, 200, 200);
+Color *gridColor = new Color(200, 200, 200);
+Color *backgroundColor = new Color(255, 255, 255);
+Color *foregroundColor = new Color(0, 0, 0);
 
 void compute_buffer() {
     memset(swap, 0, sizeof(swap));
@@ -79,10 +81,10 @@ void render(SDL_Renderer *renderer, SDL_Texture *buf) {
     for (int x = 0; x < CELLS_X; ++x) {
         for (int y = 0; y < CELLS_Y; ++y) {
             SDL_Rect currentCell = {x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE};
-            Uint8 c = 255;
+            Color *c = backgroundColor;
             if (cur[x][y])
-                c = 0;
-            SDL_SetRenderDrawColor(renderer, c, c, c, 255);
+                c = foregroundColor;
+            SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, 255);
             SDL_RenderFillRect(renderer, &currentCell);
         }
     }
@@ -225,6 +227,8 @@ int main() {
     SDL_Quit();
 
     std::free(gridColor);
+    std::free(backgroundColor);
+    std::free(foregroundColor);
 
     return 0;
 }
