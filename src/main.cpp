@@ -1,6 +1,9 @@
 #include <SDL2/SDL.h>
+#include <iostream>
+#include <fstream>
+#include <string>
 
-// number of cells
+// default number of cells
 #define CELLS_X 40
 #define CELLS_Y 30
 #define CELL_SIZE 20
@@ -12,6 +15,8 @@
 #define K_QUIT SDLK_q
 #define K_CLEAR SDLK_c
 #define K_PAUSE SDLK_SPACE
+#define K_SAVE SDLK_s
+#define K_OPEN SDLK_o
 
 // arrays for the cells
 bool cur[CELLS_X][CELLS_Y] = {0};
@@ -101,6 +106,49 @@ void clear() {
     memset(cur, 0, sizeof(cur));
 }
 
+void save_to_file() {
+    std::ofstream file;
+    std::string filename;
+    std::cout << "Please enter the name of the file you want to write to: ";
+    std::cin >> filename;
+    file.open(filename);
+    file << CELLS_X << " " << CELLS_Y << std::endl;
+    for (int x = 0; x < CELLS_X; ++x) {
+        for (int y = 0; y < CELLS_Y; ++y) {
+            if (cur[x][y])
+                file << x << " " << y << std::endl;
+        }
+    }
+    file.close();
+}
+
+void open_from_file() {
+    std::ifstream file;
+    std::string filename;
+    bool compatible = true;
+    std::cout << "Please enter the name of the file you want to read from: ";
+    std::cin >> filename;
+    file.open(filename);
+    int cells_x, cells_y;
+    file >> cells_x >> cells_y;
+    if (cells_x > CELLS_X) {
+        printf("Please increment CELLS_X to be greater than %d", cells_x);
+        compatible = false;
+    }
+    if (cells_y > CELLS_Y) {
+        printf("Please increment CELLS_Y to be greater than %d", cells_y);
+        compatible = false;
+    }
+    if (!compatible)
+        return;
+
+    int x, y;
+    while (file >> x >> y)
+        cur[x][y] = 1;
+
+    file.close();
+}
+
 int main() {
     // returns zero on success else non-zero
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -163,6 +211,21 @@ int main() {
 
                         case K_PAUSE:
                             rendering = !rendering;
+                            break;
+
+                        case K_SAVE:
+                            if (rendering)
+                                break;
+                            save_to_file();
+                            break;
+
+                        case K_OPEN:
+                            if (rendering)
+                                break;
+                            clear();
+                            open_from_file();
+                            render(renderer, buf);
+                            update(renderer, buf);
                             break;
 
                         default: break;
