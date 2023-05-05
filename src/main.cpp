@@ -1,8 +1,8 @@
 #include <SDL2/SDL.h>
 
 // number of cells
-#define CELLS_X 5
-#define CELLS_Y 5
+#define CELLS_X 10
+#define CELLS_Y 10
 #define CELL_SIZE 20
 
 // arrays for the cells
@@ -115,9 +115,11 @@ int main() {
 
     bool quit = false;
     Uint64 start, end;
+    start = SDL_GetPerformanceCounter();
+    render(renderer, buf);
+    update(renderer, buf);
+    compute_buffer();
     while (!quit) {
-        start = SDL_GetPerformanceCounter();
-
         // event loop
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -140,17 +142,16 @@ int main() {
             }
         }
 
-        // rendering loop
-        render(renderer, buf);
-        update(renderer, buf);
-        compute_buffer();
-
+        // rendering loop (only update every 500 ms)
         end = SDL_GetPerformanceCounter();
-        float elapsedMS = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
-
-        // cap to 4 fps
-        // TODO: find a better way of controlling the speed
-        SDL_Delay(floor(250.0f - elapsedMS));
+        float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+        if (elapsed > 500.0f) {
+            render(renderer, buf);
+            update(renderer, buf);
+            compute_buffer();
+            start = SDL_GetPerformanceCounter();
+            end = start;
+        }
     }
 
     SDL_DestroyWindow(win);
