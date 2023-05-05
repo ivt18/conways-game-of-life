@@ -1,13 +1,21 @@
 #include <SDL2/SDL.h>
 
 // number of cells
-#define CELLS_X 10
-#define CELLS_Y 10
+#define CELLS_X 40
+#define CELLS_Y 30
 #define CELL_SIZE 20
+
+// update rate
+#define UPDATE 500.0f
+
+// keybinds
+#define K_QUIT SDLK_q
+#define K_CLEAR SDLK_c
+#define K_PAUSE SDLK_SPACE
 
 // arrays for the cells
 bool cur[CELLS_X][CELLS_Y] = {0};
-bool buf[CELLS_X][CELLS_Y] = {0};
+bool swap[CELLS_X][CELLS_Y] = {0};
 
 struct Color {
     Uint8 r, g, b;
@@ -23,7 +31,7 @@ struct Color {
 Color* gridColor = new Color(200, 200, 200);
 
 void compute_buffer() {
-    memset(buf, 0, sizeof(buf));
+    memset(swap, 0, sizeof(swap));
 
     for (int x = 0; x < CELLS_X; ++x) {
         for (int y = 0; y < CELLS_Y; ++y) {
@@ -38,13 +46,13 @@ void compute_buffer() {
             cnt += cur[(x + 1) % CELLS_X          ][(y + 1) % CELLS_Y          ];
 
             if (cnt == 3) // birth
-                buf[x][y] = 1;
+                swap[x][y] = 1;
             if (cur[x][y] && cnt == 2) // overcrowded / lonely
-                buf[x][y] = 1;
+                swap[x][y] = 1;
         }
     }
 
-    memcpy(&cur[0][0], &buf[0][0], CELLS_X * CELLS_Y * sizeof(buf[0][0]));
+    memcpy(&cur[0][0], &swap[0][0], CELLS_X * CELLS_Y * sizeof(swap[0][0]));
 }
 
 void update(SDL_Renderer *renderer, SDL_Texture *buf) {
@@ -81,6 +89,16 @@ void render(SDL_Renderer *renderer, SDL_Texture *buf) {
     render_grid(renderer, buf);
 }
 
+void color_cell(int x, int y, bool color) {
+    int cell_x = x / CELL_SIZE;
+    int cell_y = y / CELL_SIZE;
+    cur[cell_x][cell_y] = color;
+}
+
+void clear() {
+    memset(cur, 0, sizeof(cur));
+}
+
 int main() {
     // returns zero on success else non-zero
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -109,12 +127,10 @@ int main() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    cur[1][2] = 1;
-    cur[2][2] = 1;
-    cur[3][2] = 1;
-
     bool quit = false;
+    bool rendering = false;
     Uint64 start, end;
+    int mouse_x, mouse_y;
     start = SDL_GetPerformanceCounter();
     render(renderer, buf);
     update(renderer, buf);
@@ -130,22 +146,73 @@ int main() {
 
                 case SDL_KEYDOWN:
                     switch (event.key.keysym.sym) {
-                        case SDLK_q:
+                        case K_QUIT:
                         case SDLK_ESCAPE:
                             quit = true;
+                            break;
+
+                        case K_CLEAR:
+                            if (!rendering) {
+                                clear();
+                                render(renderer, buf);
+                                update(renderer, buf);
+                            }
+                            break;
+
+                        case K_PAUSE:
+                            rendering = !rendering;
+                            break;
+
+                        default: break;
+                    }
+                    break;
+
+                case SDL_MOUSEBUTTONDOWN:
+                    if (rendering)
+                        break;
+                    switch (event.button.button) {
+                        case SDL_BUTTON_LEFT:
+                            SDL_GetMouseState(&mouse_x, &mouse_y);
+                            color_cell(mouse_x, mouse_y, 1);
+                            render(renderer, buf);
+                            update(renderer, buf);
+                            break;
+
+                        case SDL_BUTTON_RIGHT:
+                            SDL_GetMouseState(&mouse_x, &mouse_y);
+                            color_cell(mouse_x, mouse_y, 0);
+                            render(renderer, buf);
+                            update(renderer, buf);
                             break;
 
                         default: break;
                     }
 
+                case SDL_MOUSEMOTION:
+                    if (rendering)
+                        break;
+                    Uint32 state;
+                    state = SDL_GetMouseState(&mouse_x, &mouse_y);
+                    if (state & SDL_BUTTON_LMASK) {
+                        color_cell(mouse_x, mouse_y, 1);
+                        render(renderer, buf);
+                        update(renderer, buf);
+                    }
+                    if (state & SDL_BUTTON_RMASK) {
+                        color_cell(mouse_x, mouse_y, 0);
+                        render(renderer, buf);
+                        update(renderer, buf);
+                    }
+                    break;
+
                 default: break;
             }
         }
 
-        // rendering loop (only update every 500 ms)
+        // rendering loop
         end = SDL_GetPerformanceCounter();
         float elapsed = (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
-        if (elapsed > 500.0f) {
+        if (rendering && elapsed > UPDATE) {
             render(renderer, buf);
             update(renderer, buf);
             compute_buffer();
